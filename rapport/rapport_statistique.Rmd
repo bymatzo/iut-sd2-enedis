@@ -1,0 +1,270 @@
+---
+title: "Rapport DPE – Département du Rhône"
+author: "Simon, Matéo, Wissem"
+fontsize: 12pt
+output:
+  pdf_document:
+    fig_caption: true
+    number_sections: true
+  html_document:
+    fig_caption: true
+    number_sections: true
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+library(knitr)
+knitr::opts_chunk$set(comment = NA)
+
+# ======================
+# INTRODUCTION
+# ======================
+cat("# Introduction\n\n")
+
+cat("Ce rapport analyse les logements du département du Rhône à partir des données DPE.\n")
+cat("L'objectif est de répondre à la question suivante :\n\n")
+cat("> Quel est l'impact du type d'énergie principale sur les performances énergétiques \n")
+cat("et les émissions de CO2 des logements du Rhône ?\n\n")
+cat("Les données utilisées sont déjà filtrées sur le département 69. Le jeu de données\n")
+cat("contient de nombreuses observations et quelques valeurs très extrêmes. Pour garder\n")
+cat("des graphiques lisibles, les 5 % de valeurs les plus élevées (souvent liées à des \n")
+cat("erreurs de saisie ou à des cas très particuliers) sont retirées dans certaines\n")
+cat("figures : on parle alors de données 'tronquées au 95e centile'.\n\n")
+
+# ======================
+# 1. CHARGEMENT / PREPA
+# ======================
+cat("## Chargement et préparation des données\n\n")
+
+data_url = "https://raw.githubusercontent.com/bymatzo/SAE-R/refs/heads/main/app/data/data.csv"
+
+data = read.csv(data_url, sep = ",", dec = ".", stringsAsFactors = FALSE)
+cat("Les données sont chargées en ligne depuis GitHub (fichier CSV public).\n\n")
+
+data$code_postal_ban = as.character(data$code_postal_ban)
+data = subset(data, substr(code_postal_ban, 1, 2) == "69")
+
+to_num = function(x){
+  if (is.factor(x)) x = as.character(x)
+  x = gsub(",", ".", x)
+  suppressWarnings(as.numeric(x))
+}
+
+data$conso_m2  = to_num(data$conso_5_usages_par_m2_ep)
+data$ges_m2    = to_num(data$emission_ges_5_usages_par_m2)
+data$cout      = to_num(data$cout_chauffage)
+data$surf      = to_num(data$surface_habitable_logement)
+data$conso_tot = to_num(data$conso_5_usages_ep)
+
+niv = c("A","B","C","D","E","F","G")
+data$dpe_score = match(data$etiquette_dpe, niv)
+
+cat("- Nombre total de lignes (logements du Rhône) :", nrow(data), "\n\n")
+
+# ======================
+# 2. KPI GLOBAUX PAR CODE POSTAL
+# ======================
+cat("## Indicateurs globaux (KPI) par code postal\n\n")
+
+data_cp = aggregate(cbind(conso_m2, ges_m2, cout) ~ code_postal_ban,
+                    data = data,
+                    FUN  = function(x) mean(x, na.rm = TRUE))
+
+kpi = data.frame(
+  Indicateur = c("Consommation moyenne des codes postaux (kWh/m2/an)",
+                 "CO2 moyen des codes postaux (kgCO2/m2/an)",
+                 "Coût moyen de chauffage des codes postaux (euros / an)"),
+  Valeur = c(round(mean(data_cp$conso_m2, na.rm = TRUE), 1),
+             round(mean(data_cp$ges_m2,   na.rm = TRUE), 1),
+             round(mean(data_cp$cout,     na.rm = TRUE), 1))
+)
+
+kable(kpi, caption = "Tableau 1 – Indicateurs globaux calculés à partir des moyennes par code postal")
+
+cat("\nCes indicateurs sont d'abord calculés au niveau du code postal, puis moyennés sur\n")
+cat("l'ensemble du département. Cela évite qu'un seul code postal très peuplé écrase\n")
+cat("complètement les autres dans la lecture des KPI.\n\n")
+
+# ======================
+# 3. CONSOMMATION / DPE
+# ======================
+cat("## Consommation et étiquette DPE\n\n")
+
+# 3.1 Boîte à moustaches conso_tot ~ DPE (tronquée à 95 %)
+cat("### Boîte à moustaches : consommation totale par étiquette DPE\n\n")
+
+conso_tot = data$conso_tot
+dpe       = data$etiquette_dpe
+
+seuil_95_conso = quantile(conso_tot, 0.95, na.rm = TRUE)
+ok_box   = is.finite(conso_tot) & conso_tot <= seuil_95_conso
+
+plot_data_conso = conso_tot[ok_box]
+plot_dpe        = dpe[ok_box]
+
+boxplot(plot_data_conso ~ plot_dpe,
+        col       = "lightgray",
+        xlab      = "Étiquette DPE",
+        ylab      = "Consommation totale (kWh)",
+        main      = "Boîte à moustaches : consommation totale par DPE\n(données tronquées au 95e centile)",
+        cex.main  = 1.2,
+        cex.lab   = 1.1)
+
+cat("Cette figure compare la distribution de la consommation totale selon l'étiquette DPE.\n")
+cat("Les 5 % de valeurs les plus élevées ont été retirées pour limiter l'effet des valeurs\n")
+cat("aberrantes et mieux voir le comportement 'typique' des logements de chaque classe.\n")
+cat("On observe que les classes F et G restent globalement plus consommatrices, même après\n")
+cat("ce nettoyage des valeurs extrêmes.\n\n")
+
+# 3.2 Barplot conso moyenne par DPE
+cat("### Consommation moyenne par étiquette DPE\n\n")
+
+moy_conso = tapply(conso_tot, dpe, mean, na.rm = TRUE)
+
+barplot(moy_conso,
+        col      = "steelblue",
+        xlab     = "Étiquette DPE",
+        ylab     = "Consommation moyenne (kWh)",
+        main     = "Consommation moyenne des logements par DPE",
+        cex.main = 1.2,
+        cex.lab  = 1.1)
+
+cat("Ce graphique synthétise la consommation moyenne par étiquette DPE. Les classes les\n")
+cat("plus défavorables concentrent les valeurs les plus élevées, ce qui confirme visuellement\n")
+cat("que les logements mal classés sur le DPE sont aussi ceux qui consomment le plus d'énergie.\n\n")
+
+# ======================
+# 4. CO2 ET COÛT PAR ÉNERGIE
+# ======================
+cat("## Émissions de CO2 et coût du chauffage selon l'énergie\n\n")
+
+# 4.1 Boîte à moustaches CO2 par énergie (tronquée à 95 %)
+cat("### Émissions de CO2 par type d'énergie\n\n")
+
+ges_vec = data$ges_m2
+seuil_95_ges = quantile(ges_vec, 0.95, na.rm = TRUE)
+ok_ges = is.finite(ges_vec) & ges_vec <= seuil_95_ges
+
+ges_plot     = ges_vec[ok_ges]
+energie_plot = data$type_energie_principale_chauffage[ok_ges]
+
+boxplot(ges_plot ~ energie_plot,
+        col       = "lightblue",
+        las       = 2,
+        cex.axis  = 0.7,
+        xlab      = "Type d'énergie principale",
+        ylab      = "CO2 (kg/m2/an)",
+        main      = "Émissions de CO2 par type d'énergie\n(données tronquées au 95e centile)",
+        cex.main  = 1.2,
+        cex.lab   = 1.1)
+
+cat("Ce graphique compare les émissions de CO2 des logements en fonction de l'énergie de\n")
+cat("chauffage principale. En supprimant les 5 % de valeurs les plus fortes, on évite que\n")
+cat("quelques cas isolés masquent le niveau réel des différentes énergies. On distingue\n")
+cat("ainsi plus clairement les énergies relativement peu émettrices et celles qui génèrent\n")
+cat("des émissions de CO2 plus importantes.\n\n")
+
+# 4.2 Barplot coût moyen par énergie
+cat("### Coût moyen du chauffage par type d'énergie\n\n")
+
+moy_cout = tapply(data$cout, data$type_energie_principale_chauffage,
+                  mean, na.rm = TRUE)
+
+barplot(moy_cout,
+        col      = "orange",
+        las      = 2,
+        cex.axis = 0.7,
+        xlab     = "Type d'énergie principale",
+        ylab     = "Coût moyen (euros / an)",
+        main     = "Coût moyen du chauffage par énergie",
+        cex.main = 1.2,
+        cex.lab  = 1.1)
+
+cat("Le graphique du coût moyen montre que certaines énergies restent relativement bon\n")
+cat("marché, alors que d'autres entraînent des factures annuelles beaucoup plus élevées.\n")
+cat("En croisant ces résultats avec les émissions de CO2, on peut repérer les énergies qui\n")
+cat("posent un double enjeu : elles sont à la fois coûteuses et fortement émettrices.\n\n")
+
+# ======================
+# 5. RELATION CONSO / CO2
+# ======================
+cat("## Relation entre consommation et émissions de CO2\n\n")
+
+ok_scatter = is.finite(data$conso_m2) & is.finite(data$ges_m2)
+d2 = data[ok_scatter, ]
+
+seuil_x = quantile(d2$conso_m2, 0.95, na.rm = TRUE)
+seuil_y = quantile(d2$ges_m2,   0.95, na.rm = TRUE)
+ok_trunc = d2$conso_m2 <= seuil_x & d2$ges_m2 <= seuil_y
+d2 = d2[ok_trunc, ]
+
+corr = cor(d2$conso_m2, d2$ges_m2)
+cat("Corrélation conso/CO2 (kWh/m2/an vs kgCO2/m2/an) : ",
+    round(corr, 3), "\n\n", sep = "")
+
+plot(d2$conso_m2, d2$ges_m2,
+     pch      = 16,
+     col      = rgb(0.2,0.4,0.8,0.5),
+     xlab     = "Consommation (kWh/m2/an)",
+     ylab     = "CO2 (kg/m2/an)",
+     main     = "Consommation vs CO2\n(données tronquées au 95e centile)",
+     cex.main = 1.2,
+     cex.lab  = 1.1)
+
+abline(lm(ges_m2 ~ conso_m2, data = d2), col = "red", lwd = 2)
+
+cat("Le nuage de points présente la relation entre la consommation surfacique et les\n")
+cat("émissions de CO2. Là encore, les 5 % de valeurs les plus fortes ont été retirées,\n")
+cat("afin que le graphique ne soit pas dominé par quelques logements très atypiques.\n")
+cat("La corrélation positive obtenue montre que, dans l'ensemble, une hausse de la\n")
+cat("consommation s'accompagne d'une hausse des émissions de CO2.\n\n")
+
+# ======================
+# 6. APPROCHE 'CARTE' PAR CODE POSTAL
+# ======================
+cat("## Consommation moyenne par code postal (lien avec la carte)\n\n")
+
+moy_cp = aggregate(conso_m2 ~ code_postal_ban,
+                   data = data,
+                   FUN  = function(x) mean(x, na.rm = TRUE))
+
+ord = order(moy_cp$conso_m2, decreasing = TRUE)
+moy_cp = moy_cp[ord, ]
+
+seuil_cp = quantile(moy_cp$conso_m2, 0.95, na.rm = TRUE)
+moy_cp_plot = subset(moy_cp, conso_m2 <= seuil_cp)
+
+barplot(moy_cp_plot$conso_m2,
+        names.arg = moy_cp_plot$code_postal_ban,
+        las       = 2,
+        cex.names = 0.5,
+        col       = "darkseagreen3",
+        xlab      = "Code postal",
+        ylab      = "Consommation moyenne (kWh/m2/an)",
+        main      = "Consommation moyenne par code postal\n(données tronquées au 95e centile)",
+        cex.main  = 1.2,
+        cex.lab   = 1.1)
+
+cat("Cette figure propose une lecture 'par code postal' : pour chaque code, on calcule la\n")
+cat("consommation moyenne des logements, puis on retire les cas les plus extrêmes pour\n")
+cat("rester sur une échelle raisonnable. On visualise ainsi les zones du Rhône où les\n")
+cat("consommations moyennes sont les plus élevées, sans être perturbé par quelques valeurs\n")
+cat("anormales.\n\n")
+cat("Dans l'application Shiny, cette approche est prolongée par une vraie carte interactive\n")
+cat("Leaflet : chaque logement est géolocalisé, l'utilisateur peut zoomer, filtrer par type\n")
+cat("d'énergie, choisir l'affichage des points ou la moyenne par code postal et changer la\n")
+cat("mesure analysée (consommation ou DPE moyen).\n\n")
+
+# ======================
+# CONCLUSION
+# ======================
+cat("# Conclusion\n\n")
+
+cat("Ce rapport présente une analyse simple des données DPE des logements du Rhône. On\n")
+cat("constate que :\n")
+cat("- les classes DPE F et G restent associées aux consommations les plus fortes ;\n")
+cat("- certains types d'énergie combinent des coûts élevés et des émissions de CO2 importantes ;\n")
+cat("- la consommation d'énergie et les émissions de CO2 sont corrélées positivement ;\n")
+cat("- les codes postaux ne présentent pas tous le même niveau de consommation moyenne.\n\n")
+
+cat("Ce document statique complète l'application Shiny, qui permet une exploration plus\n")
+cat("fine grâce à l'interactivité de la carte (zoom, filtres, choix de la mesure affichée).\n")

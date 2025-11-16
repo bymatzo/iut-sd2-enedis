@@ -3,7 +3,7 @@
 # ========
 
 # --- Installation des packages ---
-packages = c("shiny", "ggplot2", "dplyr", "bslib", "sf", "leaflet", "jsonlite", "httr", "readr", "shinyauthr", "shinyjs")
+packages = c("shiny", "ggplot2", "dplyr", "sf", "leaflet", "jsonlite", "httr", "shinyauthr", "shinyjs")
 to_install = setdiff(packages, rownames(installed.packages()))
 if (length(to_install)) install.packages(to_install, dependencies = TRUE)
 invisible(lapply(packages, require, character.only = TRUE))
@@ -12,12 +12,10 @@ invisible(lapply(packages, require, character.only = TRUE))
 library(shiny)
 library(ggplot2)
 library(dplyr)
-library(bslib)
 library(sf)
 library(leaflet)
 library(jsonlite)
 library(httr)
-library(readr)
 library(shinyauthr)
 library(shinyjs)
 
