@@ -3,7 +3,6 @@
 Ce dépôt contient une application RShiny développée dans le cadre du projet Enedis / GreenTech Solutions.  
 L’objectif est d’analyser les Diagnostics de Performance Énergétique (DPE) du département du Rhône et de visualiser différentes statistiques (DPE, émissions de CO₂, consommation, coûts, carte interactive…).
 
----
 
 ## Structure du dépôt
 
@@ -30,7 +29,6 @@ iut-sd2-enedis/
 └── README.md                    # Présentation du dépôt
 ```
 
----
 
 ## Fonctionnalités principales
 
@@ -39,7 +37,7 @@ iut-sd2-enedis/
 - Téléchargement des graphiques (PNG) et données filtrées (CSV).
 - Mise à jour automatique des données via l’API ADEME.
 
----
+
 
 ## Lancer l’application
 
