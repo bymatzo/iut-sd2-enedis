@@ -69,7 +69,7 @@ downloadDataServer = function(id, data_expr, filename = "data.csv") {
 
 # --- Chargement des données ---
 data = read.csv(
-  "https://raw.githubusercontent.com/bymatzo/SAE-R/refs/heads/main/data/data.csv",
+  "https://raw.githubusercontent.com/bymatzo/SAE-R/refs/heads/main/app/data/data.csv",
   sep = ",", dec = "."
 )
 
@@ -141,7 +141,14 @@ ui = fluidPage(
   useShinyjs(),
   extendShinyjs(script = "switch.js", functions = c("addCSS","removeCSS")),
   tags$head(tags$link(rel="stylesheet", type="text/css", href="light.css")),
-  shinyauthr::loginUI("login"),
+  div(
+    id = "custom-login",
+    class = "login-container",
+    textInput("login_user", "Nom d'utilisateur :", placeholder = "Entrez votre identifiant"),
+    passwordInput("login_password", "Mot de passe :", placeholder = "Entrez votre mot de passe"),
+    actionButton("login_button", "Se connecter", class = "btn btn-primary"),
+    div(id = "login_error", style = "color:red; margin-top:10px;")
+  ),
   uiOutput("appUI")
 )
 
@@ -180,12 +187,22 @@ server = function(input, output, session) {
   #"FAUX" SERVER
   #=============
   
-  credentials = shinyauthr::loginServer(
-    id = "login",
-    data = user_base,
-    user_col = user,
-    pwd_col = password
-  )
+  credentials = reactiveValues(user_auth = FALSE, user = NULL)
+  
+  observeEvent(input$login_button, {
+    req(input$login_user, input$login_password)
+    
+    user_row = user_base[user_base$user == input$login_user & 
+                           user_base$password == input$login_password, ]
+    
+    if (nrow(user_row) == 1) {
+      credentials$user_auth = TRUE
+      credentials$user = user_row$name
+      shinyjs::hide("custom-login")
+    } else {
+      output$login_error <- renderText("Identifiant ou mot de passe incorrect.")
+    }
+  })
   
   # Theme
   current_theme = reactiveVal("light")
@@ -205,7 +222,7 @@ server = function(input, output, session) {
   })
   
   output$appUI = renderUI({
-    req(credentials()$user_auth)
+    req(credentials$user_auth)
     navbarPage(
       "Consommation énergetique dans le Rhône",
       
@@ -504,10 +521,9 @@ server = function(input, output, session) {
   observeEvent(input$update_data_btn, {
     
     shinyjs::html("update_status", "<div class='loading-msg'>Chargement des données...</div>")
-    session$doBookmark()
     Sys.sleep(0.2)
     
-    csv_url = "https://raw.githubusercontent.com/bymatzo/SAE-R/refs/heads/main/data/data.csv"
+    csv_url = "https://raw.githubusercontent.com/bymatzo/SAE-R/refs/heads/main/app/data/data.csv"
     old_data = read.csv(csv_url, colClasses = "character")
     old_data$date_etablissement_dpe = as.Date(old_data$date_etablissement_dpe)
     

@@ -1,0 +1,13 @@
+name: SAE-app
+title: SAE-app
+username: smorlet
+account: smorlet
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16077572
+bundleId: 11184319
+url: https://smorlet.shinyapps.io/SAE-app/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data/data.csv
