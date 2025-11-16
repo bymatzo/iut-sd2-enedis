@@ -48,7 +48,7 @@ présente sur votre machine.
 **shiny -\>** Structure principale de l'application (UI, serveur,
 réactivité, inputs/outputs).
 
-**ggplot2 -\>**Création de tous les graphiques (barplot, boxplot,
+**ggplot2 -\>** Création de tous les graphiques (barplot, boxplot,
 histogramme, scatter).
 
 **dplyr -\>** Manipulation et filtrage des données (selections,
