@@ -1,0 +1,13 @@
+name: SAE-Ademe
+title:
+username: smorlet
+account: smorlet
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16075330
+bundleId: 11184152
+url: https://smorlet.shinyapps.io/SAE-Ademe/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: a faire.txt
